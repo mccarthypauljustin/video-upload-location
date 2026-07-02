@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video details · Location Tagging Prototype</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #15141a;
+    --muted: #6b6b76;
+    --faint: #9a9aa5;
+    --border: #e4e4ea;
+    --border-strong: #d4d4dc;
+    --field-bg: #ffffff;
+    --field-bg-soft: #f4f4f7;
+    --accent: #1f6fff;
+    --indigo: #5a3df0;
+    --good: #16a36a;
+    --warn: #c97a12;
+    --warn-bg: #fff6e6;
+    --dark-btn: #3a3a40;
+    --radius: 12px;
+    --code-bg: #0e1116;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+    font-size: 15px;
+  }
+
+  /* breadcrumb header */
+  .crumb {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 40px 0;
+  }
+  .crumb .thumb {
+    width: 56px; height: 36px; border-radius: 7px; object-fit: cover; flex: none;
+    background: #d9dee4;
+  }
+  .crumb .crumb-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--muted); }
+  .crumb .crumb-title { font-size: 19px; font-weight: 800; letter-spacing: -.3px; }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 18px 40px 90px; }
+
+  .head-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 14px 0 26px;
+  }
+  .head-row h1 { font-size: 24px; font-weight: 800; margin: 0; }
+  .toolbar { display: flex; align-items: center; gap: 4px; }
+  .tbtn {
+    width: 38px; height: 38px; border-radius: 9px; border: none; background: transparent;
+    color: #2a2a30; cursor: pointer; display: grid; place-items: center;
+  }
+  .tbtn:hover { background: var(--field-bg-soft); }
+  .tbtn svg { width: 19px; height: 19px; }
+  .save-btn {
+    margin-left: 8px; background: var(--dark-btn); color: #fff; border: none;
+    padding: 9px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .save-btn:hover { background: #2a2a30; }
+
+  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 56px; align-items: start; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; gap: 30px; } }
+
+  /* form fields */
+  .field { margin-bottom: 26px; }
+  .field > label, .field-title {
+    display: block; font-size: 15px; font-weight: 700; margin-bottom: 9px;
+  }
+  .field-title .req { color: var(--muted); font-weight: 500; }
+  .field-title .opt { color: var(--muted); font-weight: 500; }
+  .help { font-size: 13.5px; color: var(--muted); margin: -2px 0 11px; }
+
+  .control { position: relative; }
+  input.txt, textarea.txt, .selectbox {
+    width: 100%; background: var(--field-bg); border: 1px solid var(--border-strong);
+    color: var(--text); border-radius: 10px; padding: 13px 14px; font-size: 15px;
+    font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  input.txt:focus, textarea.txt:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,111,255,.12); }
+  textarea.txt { resize: vertical; min-height: 96px; }
+  input.has-ai, textarea.has-ai { padding-right: 46px; }
+  .ai-spark {
+    position: absolute; right: 12px; top: 13px; width: 22px; height: 22px; cursor: pointer;
+    display: grid; place-items: center; border-radius: 6px;
+  }
+  .ai-spark:hover { background: var(--field-bg-soft); }
+  .ai-spark svg { width: 18px; height: 18px; }
+  textarea + .ai-spark { top: auto; bottom: 12px; }
+
+  .opener-box {
+    width: 100%; min-height: 56px; background: var(--field-bg-soft);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+
+  .selectbox {
+    display: flex; align-items: center; justify-content: space-between; cursor: default;
+  }
+  .selectbox .chev, .selectbox .mag { color: var(--muted); display: grid; place-items: center; }
+  .selectbox svg { width: 18px; height: 18px; }
+
+  .subtle { font-size: 12.5px; color: var(--faint); margin-top: 7px; }
+
+  /* visibility */
+  .radio-row { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 14px; }
+  .radio-row input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--indigo); }
+  .radio-row .rl { font-weight: 600; }
+  .radio-row .rd { font-size: 13px; color: var(--muted); }
+
+  /* ===== Location field (native styling) ===== */
+  .loc-pill {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: rgba(31,111,255,.1); border-radius: 20px; padding: 2px 9px; margin-left: 6px;
+    vertical-align: 2px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: #fff; color: var(--text);
+    border-radius: 10px; padding: 12px 15px; font-size: 14px; font-weight: 600;
+    font-family: inherit; transition: background .15s, border-color .15s;
+  }
+  .btn:hover { background: var(--field-bg-soft); }
+  .btn.full { width: 100%; justify-content: center; }
+  .btn svg { width: 17px; height: 17px; }
+
+  .or-row { display:flex; align-items:center; gap:12px; margin: 14px 0; color: var(--faint); font-size: 12px; }
+  .or-row::before, .or-row::after { content:""; height:1px; flex:1; background: var(--border); }
+
+  .search-wrap { position: relative; }
+  .search-wrap .mag-abs { position:absolute; left:13px; top:13px; color: var(--muted); }
+  .search-wrap .mag-abs svg { width:18px; height:18px; }
+  input.has-loc { padding-left: 44px; padding-right: 48px; }
+  .loc-inline {
+    position:absolute; right:8px; top:7px; width:34px; height:34px; border:none;
+    background:var(--field-bg-soft); border-radius:8px; cursor:pointer; display:grid;
+    place-items:center; color:var(--accent); transition: background .15s;
+  }
+  .loc-inline:hover { background:#e7e7f0; }
+  .loc-inline svg { width:18px; height:18px; }
+  .suggestion.gps { color: var(--accent); font-weight:600; border-bottom: 1px solid var(--border); }
+  .suggestion.gps .meta { color: var(--accent); }
+  .suggestions {
+    position: absolute; left:0; right:0; top: calc(100% + 6px); z-index: 20;
+    background: #fff; border: 1px solid var(--border-strong); border-radius: 11px;
+    overflow: hidden; box-shadow: 0 16px 44px rgba(20,20,30,.16); display: none;
+  }
+  .suggestions.open { display: block; }
+  .suggestion {
+    padding: 11px 14px; cursor: pointer; font-size: 14.5px; display:flex; gap:11px; align-items:center;
+    border-bottom: 1px solid var(--border);
+  }
+  .suggestion:last-child { border-bottom: none; }
+  .suggestion:hover, .suggestion.active { background: rgba(31,111,255,.08); }
+  .suggestion .pin { color: var(--accent); display:grid; place-items:center; }
+  .suggestion .pin svg { width:16px; height:16px; }
+  .suggestion .label { flex:1; }
+  .suggestion .meta { color: var(--faint); font-size: 12px; }
+  .sugg-status { padding: 12px 14px; color: var(--muted); font-size: 14px; }
+
+  .hint-bar {
+    display:flex; align-items:center; gap:10px; background: var(--warn-bg);
+    border: 1px solid #f0d9a8; border-radius: 10px; padding: 11px 13px;
+    font-size: 13.5px; margin-bottom: 14px;
+  }
+  .hint-bar .city { font-weight: 700; }
+  .hint-bar .spacer { flex: 1; }
+  .hint-bar a { color: var(--warn); cursor: pointer; font-weight:700; text-decoration: none; }
+  .hint-bar a.dismiss { color: var(--faint); font-weight:600; }
+
+  .selected {
+    display: none; border: 1px solid var(--good); border-radius: 11px;
+    padding: 15px; background: rgba(22,163,106,.06);
+  }
+  .selected.show { display: block; }
+  .selected .row1 { display:flex; align-items:flex-start; gap: 12px; }
+  .selected .pinbig { color: var(--good); margin-top:2px; }
+  .selected .pinbig svg { width: 20px; height:20px; }
+  .selected .lbl { font-size: 15px; font-weight: 700; }
+  .selected .coords { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .selected .acts { margin-left:auto; display:flex; gap: 8px; }
+  .iconbtn {
+    border: 1px solid var(--border-strong); background: #fff; color: var(--muted);
+    border-radius: 8px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; font-weight:600;
+  }
+  .iconbtn:hover { color: var(--text); border-color: var(--faint); }
+  .badge {
+    display:inline-block; margin-top:11px; font-size: 11px; font-weight:700;
+    border-radius: 20px; padding: 3px 10px; letter-spacing:.3px;
+  }
+  .badge.device_gps { background: rgba(22,163,106,.14); color: #0f7d50; }
+  .badge.user_search { background: rgba(31,111,255,.14); color: #1656c8; }
+  .badge.device_ip { background: rgba(201,122,18,.16); color: #9a5c0c; }
+
+  .consent {
+    font-size: 13px; color: var(--muted); background: var(--field-bg-soft);
+    border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; margin-top: 12px;
+    display:flex; gap: 10px; align-items:flex-start;
+  }
+  .consent input { margin-top: 2px; accent-color: var(--indigo); }
+
+  .status-line { font-size: 13px; color: var(--faint); margin-top: 12px; min-height: 16px; }
+  .note-inline { font-size:12px; color: var(--faint); margin-top: 7px; }
+
+  /* ===== RIGHT column ===== */
+  .preview-card {
+    position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9;
+    background: #1a1d22;
+  }
+  .preview-card img { width:100%; height:100%; object-fit: cover; display:block; }
+  .preview-card .pv-overlay {
+    position:absolute; inset:0; background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,0) 45%);
+    padding: 14px 16px; color: #fff;
+  }
+  .preview-card .pv-title { font-size: 15px; font-weight: 700; line-height:1.25; }
+  .preview-card .pv-sub { font-size: 12.5px; opacity:.85; margin-top: 2px; }
+  .preview-card .pv-play {
+    position:absolute; left:50%; top:50%; transform: translate(-50%,-50%);
+    display:flex; align-items:center; gap:8px;
+  }
+  .preview-card .pv-play .circle {
+    width: 56px; height: 56px; border-radius:50%; background: rgba(255,255,255,.92);
+    display:grid; place-items:center;
+  }
+  .preview-card .pv-play .circle svg { width: 22px; height:22px; color:#15141a; margin-left:3px; }
+  .preview-card .pv-time {
+    position:absolute; right:0; top:18px; background: rgba(0,0,0,.6); color:#fff;
+    font-size:12px; padding:2px 7px; border-radius:6px;
+  }
+  .views { font-size: 13px; color: var(--muted); margin: 10px 2px 4px; }
+  .rsec-title { font-size: 16px; font-weight: 800; margin: 14px 0 12px; }
+  .thumb-mini {
+    width: 150px; height: 84px; border-radius: 9px; object-fit: cover; display:block; margin-bottom: 12px;
+    border:1px solid var(--border);
+  }
+  .thumb-help { font-size: 13px; color: var(--muted); margin: 12px 0; max-width: 360px; }
+  .dark-btn {
+    display:inline-flex; align-items:center; gap:8px; background:#000; color:#fff; border:none;
+    border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .dark-btn svg { width:16px; height:16px; }
+  .file-hidden { display: none; }
+
+  /* developer metadata panel */
+  .dev-panel {
+    margin-top: 30px; border: 1px solid var(--border); border-radius: 12px; overflow:hidden;
+  }
+  .dev-head {
+    display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+    padding: 13px 16px; background: var(--field-bg-soft); font-size: 13.5px; font-weight:700;
+  }
+  .dev-head .chev { transition: transform .2s; color: var(--muted); }
+  .dev-panel.open .dev-head .chev { transform: rotate(90deg); }
+  .dev-body { display:none; padding: 14px 16px; }
+  .dev-panel.open .dev-body { display:block; }
+  .tabs { display:flex; gap: 6px; margin-bottom: 12px; }
+  .tab { font-size: 12.5px; padding: 6px 12px; border-radius: 7px; cursor:pointer; color: var(--muted); border:1px solid transparent; }
+  .tab.active { background: #fff; color: var(--text); border-color: var(--border-strong); }
+  pre {
+    margin: 0; background: var(--code-bg); border: 1px solid #222; border-radius: 10px;
+    padding: 14px; overflow:auto; font-size: 12px;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; color: #cbd2dd; max-height: 320px;
+  }
+  .k { color: #7fb0ff; } .s { color: #9ed99a; } .n { color: #f0a878; } .nul { color: #7a8290; }
+
+  .spinner {
+    width: 15px; height: 15px; border: 2px solid var(--border-strong); border-top-color: var(--accent);
+    border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #15141a; color: #fff; font-weight: 600; padding: 13px 22px; border-radius: 11px;
+    font-size: 14px; opacity: 0; transition: all .3s; pointer-events:none; z-index: 60;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+  <div class="crumb">
+    <img class="thumb" src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=160&h=100&fit=crop" alt="">
+    <div>
+      <div class="crumb-label">VIDEOS</div>
+      <div class="crumb-title">정부에서 대출 막았더니 생긴 일, 강남 '이것'만 늘었다_</div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="head-row">
+      <h1>Video details</h1>
+      <div class="toolbar">
+        <button class="tbtn" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M8 6V4h8v2m-9 0v14a1 1 0 001 1h8a1 1 0 001-1V6M10 11v6M14 11v6"/></svg></button>
+        <button class="tbtn" title="Share to"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+        <button class="tbtn" title="Embed code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 18l-6-6 6-6M16 6l6 6-6 6"/></svg></button>
+        <button class="tbtn" title="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v14"/></svg></button>
+        <button class="tbtn" title="Save to playlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h14a2 2 0 012 2v16l-9-5-9 5V5a2 2 0 012-2z"/></svg></button>
+        <button class="tbtn" title="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="save-btn" id="publishBtn">Save</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: form -->
+      <div>
+        <div class="field">
+          <div class="field-title">Title <span class="req">- Required</span></div>
+          <div class="control">
+            <input class="txt has-ai" id="title" type="text" value="정부에서 대출 막았더니 생긴 일, 강남 '이것'만 늘었다_">
+            <span class="ai-spark" title="Enhance with AI"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8L12 3z" fill="#7c3aed"/><path d="M19 3l.7 1.8L21.5 5.5l-1.8.7L19 8l-.7-1.8L16.5 5.5l1.8-.7L19 3z" fill="#a855f7"/></svg></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-title">Conversation opener</div>
+          <p class="help">Add a message in the Conversations section to spark discussions and engagement. If you edit or delete this opener later, you'll lose any existing interactions</p>
+          <div class="opener-box"></div>
+        </div>
+
+        <div class="field">
+          <div class="field-title">Description</div>
+          <div class="control">
+            <textarea class="txt has-ai" id="desc" placeholder="Tell viewers about your video">test</textarea>
+            <span class="ai-spark" title="Enhance with AI"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8L12 3z" fill="#7c3aed"/><path d="M19 3l.7 1.8L21.5 5.5l-1.8.7L19 8l-.7-1.8L16.5 5.5l1.8-.7L19 3z" fill="#a855f7"/></svg></span>
+          </div>
+          <div class="subtle">Type # to add hashtags</div>
+        </div>
+
+        <div class="field">
+          <div class="field-title">Language</div>
+          <div class="selectbox">
+            <span>English</span>
+            <span class="mag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-title">Category</div>
+          <div class="selectbox">
+            <span>Cars</span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+
+        <!-- ===== LOCATION (new) ===== -->
+        <div class="field">
+          <div class="field-title">Location <span class="opt">(optional)</span> <span class="loc-pill">NEW</span></div>
+          <p class="help">Shown publicly on your video page. Helps people discover your video in local search. You can edit or remove it any time.</p>
+
+          <!-- IP soft hint -->
+          <div class="hint-bar" id="hintBar" style="display:none;">
+            <span>📍 Looks like you're near <span class="city" id="hintCity">…</span></span>
+            <span class="spacer"></span>
+            <a id="hintUse">Use this</a>
+            <a id="hintDismiss" class="dismiss">Dismiss</a>
+          </div>
+
+          <!-- Selected chip -->
+          <div class="selected" id="selected">
+            <div class="row1">
+              <span class="pinbig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+              <div>
+                <div class="lbl" id="selLabel">—</div>
+                <div class="coords" id="selCoords">—</div>
+              </div>
+              <div class="acts">
+                <button class="iconbtn" id="editBtn">Edit</button>
+                <button class="iconbtn" id="removeBtn">Remove</button>
+              </div>
+            </div>
+            <span class="badge" id="selBadge"></span>
+          </div>
+
+          <!-- Input mode: single combined field (search + current location) -->
+          <div id="inputMode">
+            <div class="search-wrap">
+              <span class="mag-abs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+              <input class="txt has-loc" type="text" id="searchInput" placeholder="Search a place, or use your current location…" autocomplete="off">
+              <button class="loc-inline" id="gpsInline" title="Use my current location">
+                <span id="gpsIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3"/></svg></span>
+              </button>
+              <div class="suggestions" id="suggestions"></div>
+            </div>
+            <div class="consent" id="consentRow" style="display:none;">
+              <input type="checkbox" id="consentChk">
+              <label for="consentChk">I consent to Dailymotion using my device location for this video. Your browser will ask for permission next. Consent is logged with a timestamp.</label>
+            </div>
+            <div class="note-inline">Start typing for suggestions, or tap the ⊕ icon to detect your location · 300 ms debounce</div>
+          </div>
+
+          <div class="status-line" id="statusLine"></div>
+        </div>
+
+        <!-- Visibility -->
+        <div class="field">
+          <div class="field-title">Visibility</div>
+          <div class="radio-row">
+            <input type="radio" name="vis" id="visPublic" checked>
+            <div><div class="rl">Public</div><div class="rd">Anyone can watch this video</div></div>
+          </div>
+          <div class="radio-row">
+            <input type="radio" name="vis" id="visPrivate">
+            <div><div class="rl">Private</div><div class="rd">Only you can watch this video</div></div>
+          </div>
+        </div>
+
+        <!-- Developer metadata panel -->
+        <div class="dev-panel" id="devPanel">
+          <div class="dev-head" id="devHead">
+            <span>Developer · location metadata &amp; SEO output</span>
+            <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="dev-body">
+            <div class="tabs">
+              <div class="tab active" data-tab="json">location JSON</div>
+              <div class="tab" data-tab="schema">Schema.org</div>
+              <div class="tab" data-tab="payload">API payload</div>
+            </div>
+            <pre id="output"></pre>
+            <div class="note-inline" id="outNote">Stored on the video entity.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: preview -->
+      <div>
+        <div class="preview-card">
+          <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=840&h=480&fit=crop" alt="">
+          <div class="pv-overlay">
+            <div class="pv-title" id="pvTitle">정부에서 대출 막았더니 생긴 일, 강남 '이것'만 늘었다_</div>
+            <div class="pv-sub">Travel vlogs</div>
+          </div>
+          <div class="pv-time">2 : 00</div>
+          <div class="pv-play"><span class="circle"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>
+        </div>
+        <div class="views">3 views</div>
+
+        <div class="rsec-title">Thumbnail</div>
+        <img class="thumb-mini" src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=170&fit=crop" alt="">
+        <div><button class="btn" id="useFrameBtn">Use frame</button></div>
+        <p class="thumb-help">Or use a thumbnail to attract viewers' attention. The image should be between 360×360 px and 5000×5000 px and no more than 5 MB.</p>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <button class="btn" id="uploadImgBtn">Upload image</button>
+          <button class="dark-btn" id="enhanceBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8L12 3z" fill="#fff"/></svg> Enhance with AI</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" class="file-hidden">
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">✓ Saved</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = {
+    title: "정부에서 대출 막았더니 생긴 일, 강남 '이것'만 늘었다_",
+    description: "test",
+    location: null,
+    consentLoggedAt: null
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function round(n, dp) { var f = Math.pow(10, dp); return Math.round(n * f) / f; }
+  function setStatus(html) { $("statusLine").innerHTML = html || ""; }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+
+  function showSelected() {
+    var loc = state.location;
+    if (!loc) {
+      $("selected").classList.remove("show");
+      $("inputMode").style.display = "";
+      return;
+    }
+    $("selected").classList.add("show");
+    $("inputMode").style.display = "none";
+    $("selLabel").textContent = loc.label;
+    $("selCoords").textContent = (loc.latitude != null && loc.longitude != null)
+      ? loc.latitude + ", " + loc.longitude
+      : "coordinates pending / not resolved";
+    var badge = $("selBadge");
+    badge.className = "badge " + loc.source;
+    badge.textContent = loc.source;
+  }
+
+  function setLocation(loc) {
+    state.location = loc;
+    showSelected();
+    render();
+    $("hintBar").style.display = "none";
+  }
+
+  var activeTab = "json";
+
+  function colorJson(obj) {
+    var json = JSON.stringify(obj, null, 2);
+    return json
+      .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*")(\s*:)?/g, function (m, p1, p2, p3) {
+        if (p3) return '<span class="k">' + escapeHtml(p1) + "</span>" + p3;
+        return '<span class="s">' + escapeHtml(p1) + "</span>";
+      })
+      .replace(/\b(-?\d+\.?\d*)\b/g, '<span class="n">$1</span>')
+      .replace(/\bnull\b/g, '<span class="nul">null</span>');
+  }
+
+  function cleanLoc(loc) {
+    var out = {};
+    ["label", "latitude", "longitude", "source", "country_code", "city", "region"].forEach(function (k) {
+      if (loc[k] !== undefined && loc[k] !== null && loc[k] !== "") out[k] = loc[k];
+    });
+    return out;
+  }
+
+  function buildPayload() {
+    return {
+      title: state.title,
+      description: state.description,
+      language: "en",
+      category: "cars",
+      visibility: $("visPrivate").checked ? "private" : "public",
+      location: state.location ? cleanLoc(state.location) : null
+    };
+  }
+
+  function buildSchema() {
+    var loc = state.location;
+    var obj = {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": state.title || "Untitled video",
+      "uploadDate": new Date().toISOString().slice(0, 10)
+    };
+    if (loc) {
+      var place = { "@type": "Place", "name": loc.label };
+      if (loc.latitude != null && loc.longitude != null) {
+        place.geo = { "@type": "GeoCoordinates", "latitude": loc.latitude, "longitude": loc.longitude };
+      }
+      obj.contentLocation = place;
+    }
+    return obj;
+  }
+
+  function render() {
+    var out = $("output"), note = $("outNote");
+    if (activeTab === "json") {
+      out.innerHTML = colorJson({ location: state.location ? cleanLoc(state.location) : null });
+      note.textContent = "Stored on the video entity. null = no location set.";
+    } else if (activeTab === "schema") {
+      out.innerHTML = colorJson(buildSchema());
+      note.textContent = "Injected as JSON-LD on the public video page for SEO rich results.";
+    } else {
+      out.innerHTML = colorJson(buildPayload());
+      note.textContent = "PATCH /videos/{id} request body.";
+    }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) {
+    t.addEventListener("click", function () {
+      document.querySelectorAll(".tab").forEach(function (x) { x.classList.remove("active"); });
+      t.classList.add("active");
+      activeTab = t.getAttribute("data-tab");
+      render();
+    });
+  });
+
+  $("devHead").addEventListener("click", function () { $("devPanel").classList.toggle("open"); });
+
+  $("title").addEventListener("input", function (e) { state.title = e.target.value; $("pvTitle").textContent = e.target.value; render(); });
+  $("desc").addEventListener("input", function (e) { state.description = e.target.value; render(); });
+  document.querySelectorAll('input[name=vis]').forEach(function (r) { r.addEventListener("change", render); });
+
+  // thumbnail buttons (cosmetic)
+  $("useFrameBtn").addEventListener("click", function () { toast("Frame set as thumbnail"); });
+  $("uploadImgBtn").addEventListener("click", function () { $("fileInput").click(); });
+  $("enhanceBtn").addEventListener("click", function () { toast("✨ Enhancing thumbnail with AI…"); });
+  $("fileInput").addEventListener("change", function (e) { if (e.target.files[0]) toast("Thumbnail uploaded: " + e.target.files[0].name); });
+
+  // ===== Autocomplete (Photon / OpenStreetMap) =====
+  var debounceTimer = null, activeIndex = -1, currentResults = [];
+  var sugg = $("suggestions");
+
+  function placeLabel(props) {
+    var parts = [];
+    if (props.name) parts.push(props.name);
+    if (props.city && props.city !== props.name) parts.push(props.city);
+    else if (props.county && props.county !== props.name) parts.push(props.county);
+    if (props.state && props.state !== props.name) parts.push(props.state);
+    if (props.country) parts.push(props.country);
+    var dedup = parts.filter(function (p, i) { return i === 0 || p !== parts[i - 1]; });
+    return dedup.slice(0, 3).join(", ");
+  }
+
+  var CROSS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3"/></svg>';
+
+  function gpsRow() {
+    return '<div class="suggestion gps" data-gps="1">' +
+      '<span class="pin">' + CROSS + '</span>' +
+      '<span class="label">Use my current location</span>' +
+      '<span class="meta">GPS</span></div>';
+  }
+
+  function bindSuggestionClicks() {
+    Array.prototype.forEach.call(sugg.querySelectorAll(".suggestion"), function (el) {
+      el.addEventListener("click", function () {
+        if (el.getAttribute("data-gps")) requestGps();
+        else chooseResult(parseInt(el.getAttribute("data-i"), 10));
+      });
+    });
+  }
+
+  // Show just the "use current location" option (empty / short query / focus)
+  function openGpsOnly() {
+    currentResults = []; activeIndex = -1;
+    sugg.innerHTML = gpsRow();
+    sugg.classList.add("open");
+    bindSuggestionClicks();
+  }
+
+  function renderSuggestions(results) {
+    currentResults = results; activeIndex = -1;
+    var html = gpsRow();
+    if (!results.length) {
+      html += '<div class="sugg-status">No matches</div>';
+    } else {
+      html += results.map(function (r, i) {
+        var p = r.properties;
+        return '<div class="suggestion" data-i="' + i + '">' +
+          '<span class="pin">' + PIN + '</span>' +
+          '<span class="label">' + escapeHtml(p._display) + "</span>" +
+          '<span class="meta">' + escapeHtml(p.type || "") + "</span></div>";
+      }).join("");
+    }
+    sugg.innerHTML = html;
+    sugg.classList.add("open");
+    bindSuggestionClicks();
+  }
+
+  function chooseResult(i) {
+    var r = currentResults[i]; if (!r) return;
+    var p = r.properties, coords = r.geometry && r.geometry.coordinates;
+    setLocation({
+      label: p._display,
+      latitude: coords ? round(coords[1], 4) : null,
+      longitude: coords ? round(coords[0], 4) : null,
+      source: "user_search",
+      country_code: p.countrycode ? p.countrycode.toUpperCase() : null,
+      city: p.city || (p.type === "city" ? p.name : null),
+      region: p.state || null
+    });
+    sugg.classList.remove("open"); $("searchInput").value = ""; setStatus("");
+  }
+
+  function doSearch(q) {
+    setStatus('<span class="spinner"></span> Searching…');
+    fetch("https://photon.komoot.io/api/?limit=6&q=" + encodeURIComponent(q))
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        setStatus("");
+        var feats = (data.features || []).map(function (f) { f.properties._display = placeLabel(f.properties); return f; })
+          .filter(function (f) { return f.properties._display; });
+        renderSuggestions(feats);
+      })
+      .catch(function () {
+        setStatus("");
+        sugg.innerHTML = '<div class="sugg-status">Search unavailable — check your connection.</div>';
+        sugg.classList.add("open");
+      });
+  }
+
+  $("searchInput").addEventListener("input", function (e) {
+    var q = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    if (q.length < 2) { openGpsOnly(); setStatus(""); return; }
+    debounceTimer = setTimeout(function () { doSearch(q); }, 300);
+  });
+
+  $("searchInput").addEventListener("focus", function () {
+    if (!this.value.trim()) openGpsOnly();
+  });
+
+  $("searchInput").addEventListener("keydown", function (e) {
+    if (!sugg.classList.contains("open")) return;
+    var items = sugg.querySelectorAll(".suggestion"); if (!items.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      var el = items[activeIndex];
+      if (!el) return;
+      if (el.getAttribute("data-gps")) requestGps();
+      else chooseResult(parseInt(el.getAttribute("data-i"), 10));
+      return;
+    }
+    else if (e.key === "Escape") { sugg.classList.remove("open"); return; }
+    items.forEach(function (el, i) { el.classList.toggle("active", i === activeIndex); });
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".search-wrap")) sugg.classList.remove("open");
+  });
+
+  // ===== Device GPS (triggered from the combined field) =====
+  function requestGps() {
+    var consentRow = $("consentRow");
+    if (consentRow.style.display === "none") {
+      consentRow.style.display = "flex";
+      setStatus("Please confirm consent, then tap the location icon again.");
+      return;
+    }
+    if (!$("consentChk").checked) { setStatus("⚠︎ Please tick the consent box to continue."); return; }
+    if (!navigator.geolocation) { setStatus("⚠︎ Geolocation not supported. Type to search instead."); return; }
+    state.consentLoggedAt = new Date().toISOString();
+    sugg.classList.remove("open");
+    $("gpsIcon").innerHTML = '<span class="spinner"></span>';
+    setStatus("Requesting location…");
+    navigator.geolocation.getCurrentPosition(
+      function (pos) { setStatus("Resolving place…"); reverseGeocode(pos.coords.latitude, pos.coords.longitude, "device_gps"); },
+      function (err) {
+        resetGpsBtn();
+        var msg = err.code === 1 ? "Permission denied — type to search instead."
+                : err.code === 3 ? "Timed out — try search instead." : "Couldn't get location — try search instead.";
+        setStatus("⚠︎ " + msg);
+      },
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false }
+    );
+  }
+
+  $("gpsInline").addEventListener("click", requestGps);
+
+  function resetGpsBtn() {
+    $("gpsIcon").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3"/></svg>';
+  }
+
+  function reverseGeocode(lat, lon, source) {
+    fetch("https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat=" + lat + "&lon=" + lon, { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        resetGpsBtn();
+        var a = data.address || {};
+        var city = a.city || a.town || a.village || a.county || null;
+        var label = [city, a.country].filter(Boolean).join(", ") || data.display_name || "Unknown place";
+        setLocation({
+          label: label, latitude: round(lat, 4), longitude: round(lon, 4), source: source,
+          country_code: a.country_code ? a.country_code.toUpperCase() : null, city: city, region: a.state || null
+        });
+        setStatus(source === "device_gps" ? "✓ Detected from device GPS · consent logged " + state.consentLoggedAt : "✓ Resolved from IP hint");
+      })
+      .catch(function () {
+        resetGpsBtn();
+        setLocation({ label: round(lat, 4) + ", " + round(lon, 4), latitude: round(lat, 4), longitude: round(lon, 4), source: source, country_code: null, city: null, region: null });
+        setStatus("Got coordinates, but couldn't resolve a place name.");
+      });
+  }
+
+  // ===== IP soft hint =====
+  function loadIpHint() {
+    fetch("https://ipapi.co/json/").then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.city) return;
+      var label = [d.city, d.country_name].filter(Boolean).join(", ");
+      $("hintCity").textContent = label;
+      $("hintBar").style.display = "flex";
+      $("hintBar")._data = {
+        label: label,
+        latitude: d.latitude != null ? round(d.latitude, 2) : null,
+        longitude: d.longitude != null ? round(d.longitude, 2) : null,
+        source: "device_ip", country_code: d.country_code || null, city: d.city || null, region: d.region || null
+      };
+    }).catch(function () {});
+  }
+  $("hintUse").addEventListener("click", function () { var d = $("hintBar")._data; if (d) setLocation(d); });
+  $("hintDismiss").addEventListener("click", function () { $("hintBar").style.display = "none"; });
+
+  // ===== edit / remove =====
+  $("removeBtn").addEventListener("click", function () { setLocation(null); setStatus("Location removed."); });
+  $("editBtn").addEventListener("click", function () {
+    state.location = null; showSelected(); render(); $("searchInput").focus();
+    setStatus("Editing — search again or use GPS.");
+  });
+
+  // ===== save / toast =====
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    setTimeout(function () { t.classList.remove("show"); }, 2400);
+  }
+  $("publishBtn").addEventListener("click", function () {
+    toast(state.location ? "✓ Saved · location: " + state.location.label : "✓ Saved · no location set");
+  });
+
+  render();
+  loadIpHint();
+})();
+</script>
+</body>
+</html>
